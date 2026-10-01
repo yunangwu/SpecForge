@@ -440,9 +440,10 @@ class HarmonyParser(Parser):
 
         # Find spans of assistant responses using regex
         # We match `<|start|>assistant` and only extract the content following it.
-        # This continues until `<|start|>user<|message|>` appears, or until the end of the string.
+        # This continues until the next non-assistant message (user, system, developer or a
+        # tool result such as `<|start|>functions.x to=assistant`), or the end of the string.
         pattern = re.compile(
-            r"<\|start\|>assistant([\s\S]*?)(?=<\|start\|>user<\|message\|>|$)"
+            r"<\|start\|>assistant([\s\S]*?)(?=<\|start\|>(?!assistant)|$)"
         )
 
         # Find all matching segments

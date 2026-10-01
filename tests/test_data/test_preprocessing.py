@@ -60,6 +60,33 @@ def visualize_loss_mask(tokenizer, input_ids, loss_mask):
     print("\n" + "-" * 50)
 
 
+class TestHarmonyPreformattedToolResults(unittest.TestCase):
+    def test_tool_results_are_not_trained(self):
+        tokenizer = AutoTokenizer.from_pretrained("openai/gpt-oss-120b")
+        conversation = (
+            "<|start|>user<|message|>Weather in Tokyo?<|end|>"
+            "<|start|>assistant<|channel|>commentary to=functions.get_weather "
+            '<|constrain|>json<|message|>{"city": "Tokyo"}<|call|>'
+            "<|start|>functions.get_weather to=assistant<|channel|>commentary"
+            '<|message|>{"temperature": 21}<|end|>'
+            "<|start|>assistant<|channel|>final<|message|>It is 21 degrees.<|return|>"
+        )
+        results = preprocess_conversations(
+            tokenizer=tokenizer,
+            conversations=[conversation],
+            chat_template=TEMPLATE_REGISTRY.get("gpt-oss"),
+            max_length=512,
+            is_preformatted=True,
+        )
+        input_ids = results["input_ids"][0].squeeze()
+        loss_mask = results["loss_mask"][0].squeeze()
+        trained = tokenizer.decode(input_ids[loss_mask == 1])
+
+        self.assertIn('{"city": "Tokyo"}', trained)
+        self.assertIn("It is 21 degrees.", trained)
+        self.assertNotIn("temperature", trained)
+
+
 class TestPreprocessing(unittest.TestCase):
     """Test suite for conversation preprocessing and loss mask generation."""
 

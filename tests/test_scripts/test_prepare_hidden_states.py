@@ -1,4 +1,5 @@
 import gzip
+import json
 import tempfile
 import unittest
 from pathlib import Path
@@ -12,6 +13,7 @@ from scripts.prepare_hidden_states import (
     _generate_shared_vocab_mapping,
     _resolve_draft_vocab_size,
     build_target_model,
+    load_raw_dataset,
     parse_args,
     resolve_offline_capture_plan,
 )
@@ -213,6 +215,23 @@ class PrepareHiddenStatesCaptureLayersTest(unittest.TestCase):
             capture_layers,
             capture_method="dflash",
         )
+
+
+class PrepareHiddenStatesLoadDatasetTest(unittest.TestCase):
+    def test_preformatted_rows_keep_text(self):
+        text = (
+            "<|im_start|>user\nHi<|im_end|>\n<|im_start|>assistant\nHello<|im_end|>\n"
+        )
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            data_path = Path(tmp_dir) / "data.jsonl"
+            data_path.write_text(json.dumps({"text": text}) + "\n")
+            dataset = load_raw_dataset(
+                str(data_path),
+                is_preformatted=True,
+                cache_dir=str(Path(tmp_dir) / "cache"),
+                num_proc=1,
+            )
+            self.assertEqual(dataset[0]["text"], text)
 
 
 class PrepareHiddenStatesSerializationTest(unittest.TestCase):

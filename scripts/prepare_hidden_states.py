@@ -53,7 +53,7 @@ from typing import Callable, Dict, List, Mapping, Optional
 
 import torch
 import torch.distributed as dist
-from datasets import Dataset
+from datasets import Dataset, load_dataset
 from tqdm import tqdm
 from transformers import AutoConfig
 
@@ -366,6 +366,26 @@ def build_target_model(
         capture_method=capture_method,
     )
     return target_model
+
+
+def load_raw_dataset(
+    data_path: str, is_preformatted: bool, cache_dir: str, num_proc: int
+) -> Dataset:
+    """Load the JSONL; pre-formatted rows keep their 'text' column."""
+    if is_preformatted:
+        return load_dataset(
+            "json",
+            data_files=data_path,
+            split="train",
+            cache_dir=cache_dir,
+            num_proc=num_proc,
+        )
+    return Dataset.from_generator(
+        generator=safe_conversations_generator,
+        gen_kwargs={"file_path": data_path},
+        cache_dir=cache_dir,
+        num_proc=num_proc,
+    )
 
 
 class HiddenStatesGenerator:
@@ -819,9 +839,9 @@ def main():
 
     with rank_0_priority():
         print_with_rank("Loading/building dataset cache...")
-        dataset = Dataset.from_generator(
-            generator=safe_conversations_generator,
-            gen_kwargs={"file_path": args.data_path},
+        dataset = load_raw_dataset(
+            args.data_path,
+            is_preformatted=args.is_preformatted,
             cache_dir=os.path.join(
                 os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
                 "cache",
